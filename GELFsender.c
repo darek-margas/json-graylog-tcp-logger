@@ -1,3 +1,6 @@
+#define _POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 700
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,11 +12,13 @@
 #include <sys/select.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <getopt.h>
 #include <syslog.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <libgen.h>
+
+/* extensions from gcc */
+#include <getopt.h>
 
 #define BUFFER_SIZE 8192
 #define MAX_RETRIES 25
@@ -34,6 +39,14 @@ typedef struct {
 
 volatile sig_atomic_t data_ready = 0;
 bool logging_enabled = false;
+
+/* prototypes */
+void print_usage(const char* program_name);
+int connect_to_server(const char* server_ip, int port_number);
+void init_circular_buffer(CircularBuffer* cb);
+void enqueue_message(CircularBuffer* cb, const char* data, int length);
+int dequeue_message(CircularBuffer* cb, char* data, int* length);
+void sigio_handler(int signo);
 
 /* Function declarations */
 void print_usage(const char* program_name);
@@ -113,7 +126,9 @@ int dequeue_message(CircularBuffer* cb, char* data, int* length) {
     return 1;
 }
 
-void sigio_handler(__attribute__((unused)) int signo) {
+void sigio_handler(int signo)
+{
+    (void)signo;  /* Cast to void to suppress unused parameter warning */
     data_ready = 1;
 }
 
