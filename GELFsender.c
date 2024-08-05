@@ -183,7 +183,7 @@ int main(int argc, char *argv[]) {
 
         ssize_t bytes_read = read(STDIN_FILENO, buffer, BUFFER_SIZE - 1);
         if (bytes_read > 0) {
-            buffer[bytes_read - 1] = '\0';  // Null-terminate the string
+            buffer[bytes_read - 1] = '\0';  /* Null-terminate the string by replacing last character 0x0a by 0x00*/
             enqueue_message(&cb, buffer, bytes_read);
             if (logging_enabled) {
                 syslog(LOG_INFO, "Read and buffered: %s", buffer);
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
             syslog(LOG_ERR, "Error reading from stdin: %m");
         }
 
-        // Try to send buffered data
+        /* Try to send buffered data */
         while (cb.count > 0) {
             char msg[BUFFER_SIZE];
             int msg_length;
@@ -209,7 +209,7 @@ int main(int argc, char *argv[]) {
                         if (logging_enabled) {
                             syslog(LOG_INFO, "Sent to primary server: %s", msg);
                         }
-                        continue;  // Message sent successfully, move to next message
+                        continue;  /* Message sent successfully, move to next message */
                     }
                 }
 
@@ -222,17 +222,17 @@ int main(int argc, char *argv[]) {
                         if (logging_enabled) {
                             syslog(LOG_INFO, "Sent to backup server: %s", msg);
                         }
-                        continue;  // Message sent successfully, move to next message
+                        continue;  /* Message sent successfully, move to next message */
                     }
                 }
 
-                // If we reach here, both connections failed, re-enqueue the message
+                /* If we reach here, both connections failed, re-enqueue the message */
                 enqueue_message(&cb, msg, msg_length);
-                break;  // Exit the sending loop to attempt reconnection
+                break;  /* Exit the sending loop to attempt reconnection */
             }
         }
 
-        // Attempt to reconnect if necessary
+        /* Attempt to reconnect if necessary */
         if (sock_fd1 == -1) {
             sock_fd1 = connect_to_server(server_ip1, port_number1);
             if (sock_fd1 == -1) {
