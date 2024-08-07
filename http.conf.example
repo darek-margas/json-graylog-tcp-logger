@@ -1,0 +1,5 @@
+# Custom json rule
+LogFormat "{ \"host\": \"%V\", \"short_message\": \"%r\", \"timestamp\": %{%s}t, \"level\": 6, \"user_agent\": \"%{User-Agent}i\", \"ssl_protocol\": \"%{SSL_PROTOCOL}x\", \"ssl_cipher\": \"%{SSL_CIPHER}x\", \"source_ip\": \"%h\", \"server_ip\": \"%A\", \"duration_usec\": %D, \"duration_sec\": %T, \"request_size_byte\": %O, \"http_status_orig\": %s, \"http_status\": %>s, \"http_request_path\": \"%U\", \"http_request\": \"%U%q\", \"http_method\": \"%m\", \"http_referer\": \"%{Referer}i\", \"from_apache\": \"true\" }" graylog_acces
+
+# Logging directive
+CustomLog "|/usr/local/bin/GELFsender -i 172.16.0.1 -n 2201 -j 172.16.0.2 -m 2201" "graylog_access"
