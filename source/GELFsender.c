@@ -46,14 +46,6 @@ typedef struct {
 volatile sig_atomic_t data_ready = 0;
 bool logging_enabled = false;
 
-/* prototypes */
-void print_usage(const char* program_name);
-int connect_to_server(const char* server_ip, int port_number);
-void init_circular_buffer(CircularBuffer* cb);
-void enqueue_message(CircularBuffer* cb, const char* data, int length);
-int dequeue_message(CircularBuffer* cb, char* data, int* length);
-void sigio_handler(int signo);
-
 /* Function declarations */
 void print_usage(const char* program_name);
 int connect_to_server(const char* server_ip, int port_number);
