@@ -10,7 +10,7 @@ TARGET = GELFsender
 SOURCE = GELFsender.c
 
 $(TARGET): $(SOURCE)
-        $(CC) $(CFLAGS) -o $(TARGET) $(SOURCE)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCE)
 
 clean:
-        rm -f $(TARGET)
+	rm -f $(TARGET)
