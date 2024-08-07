@@ -31,4 +31,4 @@ Transferring logs from Apache to Graylog brings some challenges.
 # Known problem
 - Due to buffering, the time message arrives in Graylog isn't exactly when https sends it. It might be worth to take timestamp from http via custom logging directive. 
 
-I am not proficient in C and I see number of limitations it this code. I believe it would be better design if it spawns two forks, one to handle input, one to handle output, with shared memory buffer and output fork more focused on reconnecting and rolling buffer. It is just not someting I can write in spare time. I would be happy to tale PRs for improvements if anyone is keen to extend this work.
+I believe it would be better design if it spawns two forks, one to handle input, one to handle output, with shared memory buffer and output fork more focused on reconnecting and rolling buffer. It is just not someting I can write in spare time. It might be beneficial to use resolver and hostnames too. I would be happy to take PRs for improvements if anyone is keen to extend this work.
