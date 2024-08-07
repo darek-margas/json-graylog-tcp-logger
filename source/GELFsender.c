@@ -130,6 +130,7 @@ void sigio_handler(int signo)
     data_ready = 1;
 }
 
+#ifndef UNIT_TEST
 int main(int argc, char *argv[]) {
     int sock_fd1 = -1, sock_fd2 = -1;
     char buffer[BUFFER_SIZE];
@@ -274,3 +275,4 @@ int main(int argc, char *argv[]) {
     closelog();
     return 0;
 }
+#endif
