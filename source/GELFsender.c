@@ -1,6 +1,6 @@
 /*
 * Copyright (c) 2024, Darek Margas  All rights reserved.
-* Copyrights licensed under the GNU Lesser License.
+* Copyrights licensed under the GNU LESSER GENERAL PUBLIC LICENSE Version 2.1, February 1999.
 * See the accompanying LICENSE file for terms.
 * https://github.com/darek-margas/json-graylog-tcp-logger
 */
