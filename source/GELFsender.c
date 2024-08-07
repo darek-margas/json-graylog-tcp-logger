@@ -1,3 +1,9 @@
+/*
+* Copyright (c) 2024, Darek Margas  All rights reserved.
+* Copyrights licensed under the GNU Lesser License.
+* See the accompanying LICENSE file for terms.
+* https://github.com/darek-margas/json-graylog-tcp-logger
+*/
 #define _POSIX_C_SOURCE 200809L
 #define _XOPEN_SOURCE 700
 
