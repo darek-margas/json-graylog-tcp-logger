@@ -1,11 +1,20 @@
 /*
+* GELFsender.c
+*
 * Copyright (c) 2024, Darek Margas  All rights reserved.
 * Copyrights licensed under the GNU LESSER GENERAL PUBLIC LICENSE Version 2.1, February 1999.
 * See the accompanying LICENSE file for terms.
 * https://github.com/darek-margas/json-graylog-tcp-logger
+*
+* Changelog:
+* - added unit test 
+*
 */
+
+/*
 #define _POSIX_C_SOURCE 200809L
 #define _XOPEN_SOURCE 700
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +35,7 @@
 /* extensions from gcc */
 #include <getopt.h>
 
+/* might be better to have it in Makefile or as an option */
 #define BUFFER_SIZE 8192
 #define MAX_RETRIES 25
 #define RETRY_DELAY 5 /* seconds */
@@ -43,12 +53,17 @@ typedef struct {
     int count;
 } CircularBuffer;
 
+/* Room for unit test (no other way to replace system calls in sight) */
+typedef int (*socket_func)(int domain, int type, int protocol);
+typedef int (*inet_pton_func)(int af, const char *src, void *dst);
+typedef int (*connect_func)(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+
 volatile sig_atomic_t data_ready = 0;
 bool logging_enabled = false;
 
-/* Function declarations */
+/* Function declarations - c89 compatibility */
 void print_usage(const char* program_name);
-int connect_to_server(const char* server_ip, int port_number);
+int connect_to_server(const char* server_ip, int port_number, socket_func socket_fn, inet_pton_func inet_pton_fn, connect_func connect_fn);
 void init_circular_buffer(CircularBuffer* cb);
 void enqueue_message(CircularBuffer* cb, const char* data, int length);
 int dequeue_message(CircularBuffer* cb, char* data, int* length);
@@ -65,11 +80,14 @@ void print_usage(const char* program_name) {
     fprintf(stderr, "  -l                 Enable logging of processed requests\n");
 }
 
-int connect_to_server(const char* server_ip, int port_number) {
+int connect_to_server(const char* server_ip, int port_number,
+                      socket_func socket_fn,
+                      inet_pton_func inet_pton_fn,
+                      connect_func connect_fn) {
     int sock_fd;
     struct sockaddr_in server_addr;
 
-    sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    sock_fd = socket_fn(AF_INET, SOCK_STREAM, 0);
     if (sock_fd == -1) {
         syslog(LOG_ERR, "Failed to create socket: %m");
         return -1;
@@ -78,13 +96,13 @@ int connect_to_server(const char* server_ip, int port_number) {
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port_number);
-    if (inet_pton(AF_INET, server_ip, &server_addr.sin_addr) <= 0) {
+    if (inet_pton_fn(AF_INET, server_ip, &server_addr.sin_addr) <= 0) {
         syslog(LOG_ERR, "Invalid address: %m");
         close(sock_fd);
         return -1;
     }
 
-    if (connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+    if (connect_fn(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         syslog(LOG_ERR, "Connection failed: %m");
         close(sock_fd);
         return -1;
@@ -126,7 +144,7 @@ int dequeue_message(CircularBuffer* cb, char* data, int* length) {
 
 void sigio_handler(int signo)
 {
-    (void)signo;  /* Cast to void to suppress unused parameter warning */
+    (void)signo;  /* Cast to void to suppress unused parameter warning - c89 compatibility */
     data_ready = 1;
 }
 
@@ -248,7 +266,7 @@ int main(int argc, char *argv[]) {
 
         /* Attempt to reconnect if necessary */
         if (sock_fd1 == -1) {
-            sock_fd1 = connect_to_server(server_ip1, port_number1);
+	    sock_fd1 = connect_to_server(server_ip1, port_number1, socket, inet_pton, connect);
             if (sock_fd1 == -1) {
                 syslog(LOG_ERR, "Failed to reconnect to primary server. Retrying in %d seconds.", RETRY_DELAY);
             } else {
@@ -257,7 +275,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (server_ip2 && port_number2 && sock_fd2 == -1) {
-            sock_fd2 = connect_to_server(server_ip2, port_number2);
+	    sock_fd2 = connect_to_server(server_ip2, port_number2, socket, inet_pton, connect);
             if (sock_fd2 == -1) {
                 syslog(LOG_ERR, "Failed to reconnect to backup server. Retrying in %d seconds.", RETRY_DELAY);
             } else {
