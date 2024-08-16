@@ -12,7 +12,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-
+      with:
+        fetch-depth: 0  # This ensures all history and tags are fetched
+        
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -29,8 +31,13 @@ jobs:
         make test
     - name: Prepare package files
       run: |
-        # Get the latest tag
-        LATEST_TAG=$(git describe --tags --abbrev=0)
+        # Try to get the latest tag, use a default if none exists
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
+        
+        # If no tag was found, use the short commit hash
+        if [ "$LATEST_TAG" = "v0.1.0" ]; then
+          LATEST_TAG=$(git rev-parse --short HEAD)
+        fi
 
         cd source
         mkdir -p debian
