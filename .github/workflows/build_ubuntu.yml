@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # This ensures all history and tags are fetched
         
@@ -93,10 +93,14 @@ jobs:
         dpkg-buildpackage -us -uc -b
         
     - name: Move Debian package
-      run: mv ../*.deb .
+      run: |
+        ls -l
+        cd source
+        ls -l
+        mv ../*.deb .
 
     - name: Upload package artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ubuntu-package
         path: ./*.deb
