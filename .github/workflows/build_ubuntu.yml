@@ -56,7 +56,7 @@ jobs:
          JSON formatted data as input, feed into logger process, is being delivered by TCP connection to Graylog. 
         EOF
 
-        echo "9" > debian/compat
+        echo "11" > debian/compat
         
         cat << EOF > debian/rules
         #!/usr/bin/make -f
@@ -95,9 +95,9 @@ jobs:
     - name: Move Debian package
       run: |
         ls -l
-        cd source
-        ls -l
-        mv ../*.deb .
+#        cd source
+#        ls -l
+#        mv ../*.deb .
 
     - name: Upload package artifact
       uses: actions/upload-artifact@v4
