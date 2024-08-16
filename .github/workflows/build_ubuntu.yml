@@ -30,6 +30,8 @@ jobs:
     - name: Prepare package files
       run: |
         cd source
+        # Get the latest tag
+        LATEST_TAG=$(git describe --tags --abbrev=0)
         mkdir -p debian
         cat << EOF > debian/control
         Source: json-graylog-tcp-logger
@@ -43,7 +45,7 @@ jobs:
         Architecture: any
         Depends: \${shlibs:Depends}, \${misc:Depends}
         Description: STDIN to TCP Graylog logger
-         Long description of your package that can span multiple lines.
+         JSON formatted data as input, feed into logger process, is being delivered by TCP connection to Graylog. 
         EOF
 
         echo "9" > debian/compat
@@ -56,9 +58,9 @@ jobs:
         chmod +x debian/rules
 
         cat << EOF > debian/changelog
-        json-graylog-tcp-logger (1.0-1) unstable; urgency=medium
+        json-graylog-tcp-logger ($LATEST_TAG) unstable; urgency=medium
 
-          * Initial release
+          * Release $LATEST_TAG
 
          -- Darek <darek.margas@gmail.com>  $(date -R)
         EOF
@@ -81,9 +83,13 @@ jobs:
       run: |
         cd source
         dpkg-buildpackage -us -uc -b
+        
+    - name: Move Debian package
+      run: mv ../*.deb .
 
     - name: Upload package artifact
       uses: actions/upload-artifact@v3
       with:
         name: ubuntu-package
-        path: ../*.deb
+        path: ./*.deb
+        if-no-files-found: error
