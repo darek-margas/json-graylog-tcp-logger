@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  build-package-and-upload:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -29,6 +29,7 @@ jobs:
       run: |
         cd source
         make test
+        
     - name: Prepare package files
       run: |
         # Try to get the latest tag, use a default if none exists
@@ -41,6 +42,10 @@ jobs:
 
         cd source
         mkdir -p debian
+        mkdir -p debian/package/DEBIAN
+        mkdir -p debian/package/usr/bin  # Path
+        cp GELFsender debian/package/usr/bin/  # target
+        chmod 711 debian/package/usr/bin/GELFsender
         cat << EOF > debian/control
         Source: json-graylog-tcp-logger
         Section: utils
