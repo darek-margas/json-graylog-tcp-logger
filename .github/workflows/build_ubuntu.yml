@@ -29,9 +29,10 @@ jobs:
         make test
     - name: Prepare package files
       run: |
-        cd source
         # Get the latest tag
         LATEST_TAG=$(git describe --tags --abbrev=0)
+
+        cd source
         mkdir -p debian
         cat << EOF > debian/control
         Source: json-graylog-tcp-logger
