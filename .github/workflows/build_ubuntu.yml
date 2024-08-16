@@ -3,8 +3,6 @@ name: Build Ubuntu Package
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
   build:
@@ -87,5 +85,24 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ubuntu-package
-        path: ./*.deb
+        path: ./json-graylog-tcp-logger.deb
         if-no-files-found: error
+        
+    - name: Get latest release
+      id: get_latest_release
+      run: |
+        release_info=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                       "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+        echo "release_id=$(echo $release_info | jq -r .id)" >> $GITHUB_OUTPUT
+        echo "upload_url=$(echo $release_info | jq -r .upload_url)" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_latest_release.outputs.upload_url }}
+        asset_path: ./json-graylog-tcp-logger.deb
+        asset_name: json-graylog-tcp-logger.deb
+        asset_content_type: application/vnd.debian.binary-package
