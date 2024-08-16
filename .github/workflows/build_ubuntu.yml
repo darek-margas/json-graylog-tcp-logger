@@ -42,7 +42,7 @@ jobs:
         Package: json-graylog-tcp-logger
         Architecture: any
         Depends: \${shlibs:Depends}, \${misc:Depends}
-        Description: Short description of your package
+        Description: STDIN to TCP Graylog logger
          Long description of your package that can span multiple lines.
         EOF
 
@@ -56,7 +56,7 @@ jobs:
         chmod +x debian/rules
 
         cat << EOF > debian/changelog
-        your-package-name (1.0-1) unstable; urgency=medium
+        json-graylog-tcp-logger (1.0-1) unstable; urgency=medium
 
           * Initial release
 
