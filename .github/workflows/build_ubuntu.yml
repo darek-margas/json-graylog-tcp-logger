@@ -27,7 +27,6 @@ jobs:
       run: |
         cd source
         make test
-
     - name: Prepare package files
       run: |
         cd source
@@ -43,19 +42,45 @@ jobs:
         Package: json-graylog-tcp-logger
         Architecture: any
         Depends: \${shlibs:Depends}, \${misc:Depends}
-        Description: Graylog TCP logger
-         This is STDIN reading, TCP sending logger for graylog.
-         Takes formatted json input
+        Description: Short description of your package
+         Long description of your package that can span multiple lines.
         EOF
 
         echo "9" > debian/compat
-        echo "#!/usr/bin/make -f\n%:\n\tdh \$@" > debian/rules
+        
+        cat << EOF > debian/rules
+        #!/usr/bin/make -f
+        %:
+        	dh \$@
+        EOF
         chmod +x debian/rules
 
-        echo "json-graylog-tcp-logger (1.0-1) unstable; urgency=medium\n\n  * Initial release\n\n -- Darek <darek.margas@gmail.com>  $(date -R)" > debian/changelog
+        cat << EOF > debian/changelog
+        your-package-name (1.0-1) unstable; urgency=medium
 
+          * Initial release
+
+         -- Darek <darek.margas@gmail.com>  $(date -R)
+        EOF
+
+        # Verify files were created
+        ls -R debian
+        
+    - name: Check debian files
+      run: |
+        cd source
+        echo "Content of debian/control:"
+        cat debian/control
+        echo "Content of debian/compat:"
+        cat debian/compat
+        echo "Content of debian/rules:"
+        cat debian/rules
+        echo "Content of debian/changelog:"
+        cat debian/changelog
     - name: Build Debian package
-      run: dpkg-buildpackage -us -uc -b
+      run: |
+        cd source
+        dpkg-buildpackage -us -uc -b
 
     - name: Upload package artifact
       uses: actions/upload-artifact@v3
