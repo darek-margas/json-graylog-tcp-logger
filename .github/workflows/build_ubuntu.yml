@@ -7,7 +7,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
+      
     steps:
     - uses: actions/checkout@v4
       with:
@@ -88,15 +90,6 @@ jobs:
 #        path: ./*.deb
 #        if-no-files-found: error
         
-    - name: Get latest release
-      id: get_latest_release
-      run: |
-        release_info=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                       "https://api.github.com/repos/${{ github.repository }}/releases/latest")
-        echo "release_id=$(echo $release_info | jq -r .id)" >> $GITHUB_OUTPUT
-        echo "upload_url=$(echo $release_info | jq -r .upload_url)" >> $GITHUB_OUTPUT
-      shell: bash
-      
     - name: Find .deb file
       id: find_deb
       run: |
@@ -108,7 +101,20 @@ jobs:
         echo "deb_file=${DEB_FILE}" >> $GITHUB_OUTPUT
         echo "deb_name=$(basename ${DEB_FILE})" >> $GITHUB_OUTPUT
       shell: bash
-      
+
+    - name: Get latest release
+      id: get_latest_release
+      run: |
+        release_info=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                       "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+        if [ "$(echo $release_info | jq -r .message)" = "Not Found" ]; then
+          echo "No releases found. Please create a release first."
+          exit 1
+        fi
+        echo "release_id=$(echo $release_info | jq -r .id)" >> $GITHUB_OUTPUT
+        echo "upload_url=$(echo $release_info | jq -r .upload_url)" >> $GITHUB_OUTPUT
+      shell: bash
+
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
