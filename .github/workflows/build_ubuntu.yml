@@ -1,0 +1,64 @@
+name: Build Ubuntu Package
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential debhelper dh-make
+
+    - name: Build project
+      run: |
+         cd source
+         make
+
+    - name: Run tests
+      run: |
+        cd source
+        make test
+
+    - name: Prepare package files
+      run: |
+        cd source
+        mkdir -p debian
+        cat << EOF > debian/control
+        Source: json-graylog-tcp-logger
+        Section: utils
+        Priority: optional
+        Maintainer: Darek <darek.margas@gmail.com>
+        Build-Depends: debhelper (>= 9)
+        Standards-Version: 3.9.8
+
+        Package: json-graylog-tcp-logger
+        Architecture: any
+        Depends: \${shlibs:Depends}, \${misc:Depends}
+        Description: Graylog TCP logger
+         This is STDIN reading, TCP sending logger for graylog.
+         Takes formatted json input
+        EOF
+
+        echo "9" > debian/compat
+        echo "#!/usr/bin/make -f\n%:\n\tdh \$@" > debian/rules
+        chmod +x debian/rules
+
+        echo "json-graylog-tcp-logger (1.0-1) unstable; urgency=medium\n\n  * Initial release\n\n -- Darek <darek.margas@gmail.com>  $(date -R)" > debian/changelog
+
+    - name: Build Debian package
+      run: dpkg-buildpackage -us -uc -b
+
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ubuntu-package
+        path: ../*.deb
