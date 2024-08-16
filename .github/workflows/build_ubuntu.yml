@@ -96,13 +96,25 @@ jobs:
         echo "release_id=$(echo $release_info | jq -r .id)" >> $GITHUB_OUTPUT
         echo "upload_url=$(echo $release_info | jq -r .upload_url)" >> $GITHUB_OUTPUT
       shell: bash
-
+      
+    - name: Find .deb file
+      id: find_deb
+      run: |
+        DEB_FILE=$(find . -maxdepth 1 -name "*.deb" -print -quit)
+        if [ -z "$DEB_FILE" ]; then
+          echo "No .deb file found"
+          exit 1
+        fi
+        echo "deb_file=${DEB_FILE}" >> $GITHUB_OUTPUT
+        echo "deb_name=$(basename ${DEB_FILE})" >> $GITHUB_OUTPUT
+      shell: bash
+      
     - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
+      uses: actions/upload-release-asset@v4
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_latest_release.outputs.upload_url }}
-        asset_path: ./*.deb
-        asset_name: json-graylog-tcp-logger.deb
+        asset_path: ${{ steps.find_deb.outputs.deb_file }}
+        asset_name: ${{ steps.find_deb.outputs.deb_name }}
         asset_content_type: application/vnd.debian.binary-package
