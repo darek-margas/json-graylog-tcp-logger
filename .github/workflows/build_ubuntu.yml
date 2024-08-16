@@ -53,7 +53,9 @@ jobs:
         Architecture: any
         Depends: \${shlibs:Depends}, \${misc:Depends}
         Description: STDIN to TCP Graylog logger
-         JSON formatted data as input, feed into logger process, is being delivered by TCP connection to Graylog. 
+         This is Graylog TCP logger written in C
+         This process takes STDIN as input, assuming one message per line, terminated by 0x0a. 
+         Then, replaces termination with 0x00 to comply with Graylog TCP format and sends it to one of (up to) two Graylog servers. 
         EOF
 
         echo "11" > debian/compat
@@ -74,30 +76,12 @@ jobs:
         EOF
 
         # Verify files were created
-        ls -R debian
-        
-    - name: Check debian files
-      run: |
-        cd source
-        echo "Content of debian/control:"
-        cat debian/control
-        echo "Content of debian/compat:"
-        cat debian/compat
-        echo "Content of debian/rules:"
-        cat debian/rules
-        echo "Content of debian/changelog:"
-        cat debian/changelog
+        #ls -R debian
+
     - name: Build Debian package
       run: |
         cd source
         dpkg-buildpackage -us -uc -b
-        
-    - name: Move Debian package
-      run: |
-        ls -l
-#        cd source
-#        ls -l
-#        mv ../*.deb .
 
     - name: Upload package artifact
       uses: actions/upload-artifact@v4
