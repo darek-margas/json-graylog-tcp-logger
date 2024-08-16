@@ -81,12 +81,12 @@ jobs:
         cd source
         dpkg-buildpackage -us -uc -b
 
-    - name: Upload package artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ubuntu-package
-        path: ./*.deb
-        if-no-files-found: error
+#    - name: Upload package artifact
+#      uses: actions/upload-artifact@v4
+#      with:
+#        name: ubuntu-package
+#        path: ./*.deb
+#        if-no-files-found: error
         
     - name: Get latest release
       id: get_latest_release
