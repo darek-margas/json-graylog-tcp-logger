@@ -1,131 +1,91 @@
-name: Build Debian and Ubuntu packages
+name: Build packages
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
   release:
-    types: [ published ]
+    types:
+      - published
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: Ubuntu 20.04
-            image: ubuntu:20.04
+            image: "ubuntu:20.04"
             slug: ubuntu20.04
           - name: Ubuntu 22.04
-            image: ubuntu:22.04
+            image: "ubuntu:22.04"
             slug: ubuntu22.04
           - name: Ubuntu 24.04
-            image: ubuntu:24.04
+            image: "ubuntu:24.04"
             slug: ubuntu24.04
           - name: Ubuntu 26.04
-            image: ubuntu:26.04
+            image: "ubuntu:26.04"
             slug: ubuntu26.04
           - name: Debian 11
-            image: debian:11
+            image: "debian:11"
             slug: debian11
           - name: Debian 12
-            image: debian:12
+            image: "debian:12"
             slug: debian12
           - name: Debian 13
-            image: debian:13
+            image: "debian:13"
             slug: debian13
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Work out package version
+      - name: Package version
         id: version
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [[ "${{ github.event_name }}" == "release" ]]; then
             VERSION="${{ github.event.release.tag_name }}"
           else
-            VERSION="$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD)"
+            VERSION="$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD)"
           fi
-
           VERSION="${VERSION#v}"
           VERSION="$(printf '%s' "$VERSION" | sed 's/[^0-9A-Za-z.+~:-]/+/g')"
-
-          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]'; then
+          if [[ ! "$VERSION" =~ ^[0-9] ]]; then
             VERSION="0.0.0+git.$VERSION"
           fi
-
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Build and test package
+      - name: Build package
         shell: bash
         run: |
           docker run --rm \
-            -e DEBIAN_FRONTEND=noninteractive \
-            -e PACKAGE_VERSION="${{ steps.version.outputs.version }}" \
-            -e DIST_SLUG="${{ matrix.slug }}" \
             -v "$GITHUB_WORKSPACE:/work" \
             -w /work \
             "${{ matrix.image }}" \
-            bash -euxo pipefail -c '
-              apt-get update
-              apt-get install -y --no-install-recommends \
-                build-essential \
-                debhelper \
-                devscripts \
-                dpkg-dev \
-                ca-certificates
+            sh /work/scripts/build-deb.sh \
+            "${{ steps.version.outputs.version }}" \
+            "${{ matrix.slug }}"
 
-              cd source
-
-              make clean
-              make
-              make test
-
-              cat > debian/changelog <<EOF
-json-graylog-tcp-logger (${PACKAGE_VERSION}) unstable; urgency=medium
-
-  * Build ${PACKAGE_VERSION} for ${DIST_SLUG}.
-
- -- Darek Margas <darek.margas@gmail.com>  $(date -R)
-EOF
-
-              dpkg-buildpackage -us -uc -b
-
-              DEB="$(find .. -maxdepth 1 -type f -name "json-graylog-tcp-logger_*.deb" -print -quit)"
-              test -n "$DEB"
-
-              echo "Package contents:"
-              dpkg-deb -c "$DEB"
-
-              dpkg-deb -c "$DEB" | grep -Eq "[.]?/usr/bin/GELFsender$"
-
-              ARCH="$(dpkg-deb -f "$DEB" Architecture)"
-              OUT="../json-graylog-tcp-logger_${PACKAGE_VERSION}_${DIST_SLUG}_${ARCH}.deb"
-              cp "$DEB" "$OUT"
-
-              echo "Built: $OUT"
-              dpkg-deb -f "$OUT" Package Version Architecture Depends
-            '
-
-      - name: Upload CI artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: json-graylog-tcp-logger-${{ matrix.slug }}
           path: json-graylog-tcp-logger_*_${{ matrix.slug }}_*.deb
           if-no-files-found: error
 
-      - name: Upload package to GitHub release
+      - name: Upload to release
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
