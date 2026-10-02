@@ -33,7 +33,7 @@ jobs:
             image: "ubuntu:26.04"
             slug: ubuntu26.04
           - name: Debian 11
-            image: "debian:11"
+            image: "gcc:10-bullseye"
             slug: debian11
           - name: Debian 12
             image: "debian:12"
