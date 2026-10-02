@@ -11,6 +11,20 @@ DIST_SLUG="$2"
 
 export DEBIAN_FRONTEND=noninteractive
 
+# Debian 11 (bullseye) is archived. Its live security mirror can temporarily
+# advertise package revisions that have already been rotated out, producing
+# repeatable 404s. Use the archive for a stable, self-consistent build root.
+if [ -r /etc/os-release ]; then
+    . /etc/os-release
+    if [ "${VERSION_CODENAME:-}" = "bullseye" ]; then
+        cat > /etc/apt/sources.list <<'EOF'
+deb http://archive.debian.org/debian bullseye main
+deb http://archive.debian.org/debian-security bullseye-security main
+EOF
+        printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99archive
+    fi
+fi
+
 apt_install() {
     attempt=1
     while [ "$attempt" -le 3 ]; do
