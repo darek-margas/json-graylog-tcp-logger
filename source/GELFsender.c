@@ -160,6 +160,18 @@ int main(int argc, char *argv[]) {
 
     openlog(basename(argv[0]), LOG_PID | LOG_CONS, LOG_USER);
 
+#ifdef SIGPIPE
+    /*
+     * A write to a TCP socket closed by the peer may raise SIGPIPE before
+     * send() can return EPIPE.  Ignore it so the normal reconnect/failover
+     * path handles the failed send instead of terminating the process.
+     *
+     * SIGPIPE is not available on all platforms (notably Windows), so keep
+     * this conditional for portability.
+     */
+    signal(SIGPIPE, SIG_IGN);
+#endif
+
     while ((opt = getopt(argc, argv, "i:n:j:m:l")) != -1) {
         switch (opt) {
             case 'i': server_ip1 = optarg; break;
