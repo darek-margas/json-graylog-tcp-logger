@@ -19,7 +19,6 @@ if [ -r /etc/os-release ]; then
     if [ "${VERSION_CODENAME:-}" = "bullseye" ]; then
         cat > /etc/apt/sources.list <<'EOF'
 deb http://archive.debian.org/debian bullseye main
-deb http://archive.debian.org/debian-security bullseye-security main
 EOF
         printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99archive
     fi
