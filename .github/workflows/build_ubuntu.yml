@@ -7,9 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  release:
-    types:
-      - published
   workflow_dispatch:
 
 jobs:
@@ -17,7 +14,7 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
 
     strategy:
       fail-fast: false
@@ -48,35 +45,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Package version
         id: version
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            VERSION="${{ github.event.release.tag_name }}"
-          else
-            VERSION="$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD)"
-          fi
-          VERSION="${VERSION#v}"
-          VERSION="$(printf '%s' "$VERSION" | sed 's/[^0-9A-Za-z.+~:-]/+/g')"
-          if [[ ! "$VERSION" =~ ^[0-9] ]]; then
-            VERSION="0.0.0+git.$VERSION"
-          fi
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          test -n "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build package
         shell: bash
         run: |
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE:/work" \
-            -w /work \
-            "${{ matrix.image }}" \
-            sh /work/scripts/build-deb.sh \
-            "${{ steps.version.outputs.version }}" \
-            "${{ matrix.slug }}"
+          docker run --rm             -v "$GITHUB_WORKSPACE:/work"             -w /work             "${{ matrix.image }}"             sh /work/scripts/build-deb.sh             "${{ steps.version.outputs.version }}"             "${{ matrix.slug }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -85,12 +66,41 @@ jobs:
           path: json-graylog-tcp-logger_*_${{ matrix.slug }}_*.deb
           if-no-files-found: error
 
-      - name: Upload to release
-        if: github.event_name == 'release'
+  release:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          test -n "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: json-graylog-tcp-logger-*
+          merge-multiple: true
+          path: release
+
+      - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" \
-            json-graylog-tcp-logger_*_${{ matrix.slug }}_*.deb \
-            --clobber
+          VERSION="${{ steps.version.outputs.version }}"
+          ls -l release
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" release/*.deb --clobber
+          else
+            gh release create "$VERSION"               --target "$GITHUB_SHA"               --title "$VERSION"               --generate-notes               release/*.deb
+          fi
