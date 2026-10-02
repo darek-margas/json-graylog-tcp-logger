@@ -1,0 +1,15 @@
+Source: json-graylog-tcp-logger
+Section: utils
+Priority: optional
+Maintainer: Darek Margas <darek.margas@gmail.com>
+Build-Depends: debhelper-compat (= 12)
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: json-graylog-tcp-logger
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: STDIN to Graylog TCP logger
+ Reads newline-terminated messages from standard input, converts the line
+ terminator to the NUL delimiter required by Graylog TCP input, and sends
+ messages to one of up to two Graylog servers with failover and buffering.
