@@ -6,7 +6,7 @@ if [ "$#" -ne 2 ]; then
     exit 2
 fi
 
-VERSION="$1"
+PACKAGE_VERSION="$1"
 DIST_SLUG="$2"
 
 export DEBIAN_FRONTEND=noninteractive
@@ -52,9 +52,9 @@ make
 make test
 
 cat > debian/changelog <<EOF
-json-graylog-tcp-logger (${VERSION}) unstable; urgency=medium
+json-graylog-tcp-logger (${PACKAGE_VERSION}) unstable; urgency=medium
 
-  * Build ${VERSION} for ${DIST_SLUG}.
+  * Build ${PACKAGE_VERSION} for ${DIST_SLUG}.
 
  -- Darek Margas <darek.margas@gmail.com>  $(date -R)
 EOF
@@ -73,7 +73,7 @@ if ! dpkg-deb -c "$DEB" | grep -Eq '[.]?/usr/bin/GELFsender$'; then
 fi
 
 ARCH="$(dpkg-deb -f "$DEB" Architecture)"
-OUT="../json-graylog-tcp-logger_${VERSION}_${DIST_SLUG}_${ARCH}.deb"
+OUT="../json-graylog-tcp-logger_${PACKAGE_VERSION}_${DIST_SLUG}_${ARCH}.deb"
 cp "$DEB" "$OUT"
 
 echo "Built: $OUT"
