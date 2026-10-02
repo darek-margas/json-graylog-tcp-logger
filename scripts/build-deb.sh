@@ -9,13 +9,27 @@ fi
 VERSION="$1"
 DIST_SLUG="$2"
 
-apt-get update
-apt-get install -y --no-install-recommends \
-    build-essential \
-    debhelper \
-    devscripts \
-    dpkg-dev \
-    ca-certificates
+export DEBIAN_FRONTEND=noninteractive
+
+apt_install() {
+    attempt=1
+    while [ "$attempt" -le 3 ]; do
+        rm -rf /var/lib/apt/lists/*
+        if timeout 180 apt-get -o Acquire::Retries=3 update &&
+           timeout 300 apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+               build-essential \
+               debhelper \
+               dpkg-dev; then
+            return 0
+        fi
+        echo "apt failed on attempt $attempt, retrying..." >&2
+        attempt=$((attempt + 1))
+        sleep 5
+    done
+    return 1
+}
+
+apt_install
 
 cd /work/source
 
