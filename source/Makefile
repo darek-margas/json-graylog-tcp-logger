@@ -17,7 +17,7 @@ SOURCE = GELFsender.c
 TEST_TARGET = test_GELFsender
 TEST_SOURCE = test_GELFsender.c 
 
-.PHONY: all clean test
+.PHONY: all clean test install
 
 all: $(TARGET) $(TEST_TARGET)
 
@@ -29,6 +29,9 @@ $(TEST_TARGET): $(TEST_SOURCE) $(SOURCE)
 
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
+
+install: $(TARGET)
+	install -D -m 0755 $(TARGET) $(DESTDIR)/usr/bin/$(TARGET)
 
 clean:
 	rm -f $(TARGET) $(TEST_TARGET)
