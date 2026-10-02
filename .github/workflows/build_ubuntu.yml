@@ -57,7 +57,19 @@ jobs:
       - name: Build package
         shell: bash
         run: |
-          docker run --rm             -v "$GITHUB_WORKSPACE:/work"             -w /work             "${{ matrix.image }}"             sh /work/scripts/build-deb.sh             "${{ steps.version.outputs.version }}"             "${{ matrix.slug }}"
+          if [ "${{ matrix.slug }}" = "debian11" ]; then
+            BUILD_SCRIPT=/work/scripts/build-deb11.sh
+          else
+            BUILD_SCRIPT=/work/scripts/build-deb.sh
+          fi
+
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            "${{ matrix.image }}" \
+            sh "$BUILD_SCRIPT" \
+            "${{ steps.version.outputs.version }}" \
+            "${{ matrix.slug }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -102,5 +114,9 @@ jobs:
           if gh release view "$VERSION" >/dev/null 2>&1; then
             gh release upload "$VERSION" release/*.deb --clobber
           else
-            gh release create "$VERSION"               --target "$GITHUB_SHA"               --title "$VERSION"               --generate-notes               release/*.deb
+            gh release create "$VERSION" \
+              --target "$GITHUB_SHA" \
+              --title "$VERSION" \
+              --generate-notes \
+              release/*.deb
           fi
