@@ -1,131 +1,136 @@
-name: Build Ubuntu Package
+name: Build Debian and Ubuntu packages
 
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  build-package-and-upload:
+  build:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 20.04
+            image: ubuntu:20.04
+            slug: ubuntu20.04
+          - name: Ubuntu 22.04
+            image: ubuntu:22.04
+            slug: ubuntu22.04
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            slug: ubuntu24.04
+          - name: Ubuntu 26.04
+            image: ubuntu:26.04
+            slug: ubuntu26.04
+          - name: Debian 11
+            image: debian:11
+            slug: debian11
+          - name: Debian 12
+            image: debian:12
+            slug: debian12
+          - name: Debian 13
+            image: debian:13
+            slug: debian13
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # This ensures all history and tags are fetched
-        
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential debhelper dh-make
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Build project
-      run: |
-         cd source
-         make
+      - name: Work out package version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD)"
+          fi
 
-    - name: Run tests
-      run: |
-        cd source
-        make test
-        
-    - name: Prepare package files
-      run: |
-        # Try to get the latest tag, use a default if none exists
-        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
-        
-        # If no tag was found, use the short commit hash
-        if [ "$LATEST_TAG" = "v0.1.0" ]; then
-          LATEST_TAG=$(git rev-parse --short HEAD)
-        fi
+          VERSION="${VERSION#v}"
+          VERSION="$(printf '%s' "$VERSION" | sed 's/[^0-9A-Za-z.+~:-]/+/g')"
 
-        cd source
-        mkdir -p debian
-        mkdir -p debian/package/DEBIAN
-        mkdir -p debian/package/usr/bin  # Path
-        cp GELFsender debian/package/usr/bin/  # target
-        chmod 711 debian/package/usr/bin/GELFsender
-        cat << EOF > debian/control
-        Source: json-graylog-tcp-logger
-        Section: utils
-        Priority: optional
-        Maintainer: Darek <darek.margas@gmail.com>
-        Build-Depends: debhelper (>= 9)
-        Standards-Version: 3.9.8
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]'; then
+            VERSION="0.0.0+git.$VERSION"
+          fi
 
-        Package: json-graylog-tcp-logger
-        Architecture: any
-        Depends: \${shlibs:Depends}, \${misc:Depends}
-        Description: STDIN to TCP Graylog logger
-         This is Graylog TCP logger written in C
-         This process takes STDIN as input, assuming one message per line, terminated by 0x0a. 
-         Then, replaces termination with 0x00 to comply with Graylog TCP format and sends it to one of (up to) two Graylog servers. 
-        EOF
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-        echo "11" > debian/compat
-        
-        cat << EOF > debian/rules
-        #!/usr/bin/make -f
-        %:
-        	dh \$@
-        EOF
-        chmod +x debian/rules
+      - name: Build and test package
+        shell: bash
+        run: |
+          docker run --rm \
+            -e DEBIAN_FRONTEND=noninteractive \
+            -e PACKAGE_VERSION="${{ steps.version.outputs.version }}" \
+            -e DIST_SLUG="${{ matrix.slug }}" \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            "${{ matrix.image }}" \
+            bash -euxo pipefail -c '
+              apt-get update
+              apt-get install -y --no-install-recommends \
+                build-essential \
+                debhelper \
+                devscripts \
+                dpkg-dev \
+                ca-certificates
 
-        cat << EOF > debian/changelog
-        json-graylog-tcp-logger ($LATEST_TAG) unstable; urgency=medium
+              cd source
 
-          * Release $LATEST_TAG
+              make clean
+              make
+              make test
 
-         -- Darek <darek.margas@gmail.com>  $(date -R)
-        EOF
+              cat > debian/changelog <<EOF
+json-graylog-tcp-logger (${PACKAGE_VERSION}) unstable; urgency=medium
 
-        # Verify files were created
-        #ls -R debian
+  * Build ${PACKAGE_VERSION} for ${DIST_SLUG}.
 
-    - name: Build Debian package
-      run: |
-        cd source
-        dpkg-buildpackage -us -uc -b
+ -- Darek Margas <darek.margas@gmail.com>  $(date -R)
+EOF
 
-#    - name: Upload package artifact
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: ubuntu-package
-#        path: ./*.deb
-#        if-no-files-found: error
-        
-    - name: Find .deb file
-      id: find_deb
-      run: |
-        DEB_FILE=$(find . -maxdepth 1 -name "*.deb" -print -quit)
-        if [ -z "$DEB_FILE" ]; then
-          echo "No .deb file found"
-          exit 1
-        fi
-        echo "deb_file=${DEB_FILE}" >> $GITHUB_OUTPUT
-        echo "deb_name=$(basename ${DEB_FILE})" >> $GITHUB_OUTPUT
-      shell: bash
+              dpkg-buildpackage -us -uc -b
 
-    - name: Get latest release
-      id: get_latest_release
-      run: |
-        release_info=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                       "https://api.github.com/repos/${{ github.repository }}/releases/latest")
-        if [ "$(echo $release_info | jq -r .message)" = "Not Found" ]; then
-          echo "No releases found. Please create a release first."
-          exit 1
-        fi
-        echo "release_id=$(echo $release_info | jq -r .id)" >> $GITHUB_OUTPUT
-        echo "upload_url=$(echo $release_info | jq -r .upload_url)" >> $GITHUB_OUTPUT
-      shell: bash
+              DEB="$(find .. -maxdepth 1 -type f -name "json-graylog-tcp-logger_*.deb" -print -quit)"
+              test -n "$DEB"
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.get_latest_release.outputs.upload_url }}
-        asset_path: ${{ steps.find_deb.outputs.deb_file }}
-        asset_name: ${{ steps.find_deb.outputs.deb_name }}
-        asset_content_type: application/vnd.debian.binary-package
+              echo "Package contents:"
+              dpkg-deb -c "$DEB"
+
+              dpkg-deb -c "$DEB" | grep -Eq "[.]?/usr/bin/GELFsender$"
+
+              ARCH="$(dpkg-deb -f "$DEB" Architecture)"
+              OUT="../json-graylog-tcp-logger_${PACKAGE_VERSION}_${DIST_SLUG}_${ARCH}.deb"
+              cp "$DEB" "$OUT"
+
+              echo "Built: $OUT"
+              dpkg-deb -f "$OUT" Package Version Architecture Depends
+            '
+
+      - name: Upload CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: json-graylog-tcp-logger-${{ matrix.slug }}
+          path: json-graylog-tcp-logger_*_${{ matrix.slug }}_*.deb
+          if-no-files-found: error
+
+      - name: Upload package to GitHub release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            json-graylog-tcp-logger_*_${{ matrix.slug }}_*.deb \
+            --clobber
