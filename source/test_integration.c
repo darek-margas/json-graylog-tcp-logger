@@ -387,6 +387,7 @@ int main(int argc, char *argv[])
         sender_bin = argv[1];
     }
     signal(SIGPIPE, SIG_IGN);
+    alarm(120); /* a hang fails the test instead of blocking the build */
 
     test_bad_options();
     test_lines_and_long_message();

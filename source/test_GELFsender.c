@@ -269,7 +269,7 @@ static void test_net_connect(void)
         CHECK(c >= 0);
         if (c >= 0) {
             CHECK(send(fd, "ping", 5, 0) == 5);
-            CHECK(recv(c, got, sizeof(got), MSG_WAITALL) == 5);
+            CHECK(recv(c, got, 5, MSG_WAITALL) == 5);
             CHECK(memcmp(got, "ping", 5) == 0);
             close(c);
         }
@@ -290,6 +290,8 @@ static void test_net_connect(void)
 
 int main(void)
 {
+    alarm(120); /* a hang fails the test instead of blocking the build */
+
     test_rb_fifo();
     test_rb_wraparound();
     test_rb_eviction_to_three_quarters();
