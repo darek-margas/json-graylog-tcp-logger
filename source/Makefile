@@ -7,32 +7,46 @@
 # https://github.com/darek-margas/json-graylog-tcp-logger
 #
 # Changelog:
-# - added unit test 
+# - split into modules; tests link the same objects as GELFsender, no
+#   separate -DUNIT_TEST build
+# - integration test runs the real binary against loopback listeners
+# - added unit test
 # - migrated compatibility definitions into gcc options
 #
 CC = gcc
 CFLAGS = -O4 -Wall -Wextra -std=c89 -Wmissing-prototypes -Wstrict-prototypes -D_XOPEN_SOURCE=700 -D_POSIX_C_SOURCE=200809L
 TARGET = GELFsender
-SOURCE = GELFsender.c
-TEST_TARGET = test_GELFsender
-TEST_SOURCE = test_GELFsender.c 
+OBJS = ringbuf.o framer.o net.o
+UNIT_TEST = test_GELFsender
+INTEGRATION_TEST = test_integration
 
 .PHONY: all clean test install
 
-all: $(TARGET) $(TEST_TARGET)
+all: $(TARGET)
 
-$(TARGET): $(SOURCE)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCE)
+$(TARGET): GELFsender.o $(OBJS)
+	$(CC) $(CFLAGS) -o $@ GELFsender.o $(OBJS)
 
-$(TEST_TARGET): $(TEST_SOURCE) $(SOURCE)
-	$(CC) $(CFLAGS) -o $(TEST_TARGET) $(TEST_SOURCE) -DUNIT_TEST
+$(UNIT_TEST): test_GELFsender.o test_util.o $(OBJS)
+	$(CC) $(CFLAGS) -o $@ test_GELFsender.o test_util.o $(OBJS)
 
-test: $(TEST_TARGET)
-	./$(TEST_TARGET)
+$(INTEGRATION_TEST): test_integration.o test_util.o
+	$(CC) $(CFLAGS) -o $@ test_integration.o test_util.o
+
+GELFsender.o: GELFsender.c ringbuf.h framer.h net.h
+ringbuf.o: ringbuf.c ringbuf.h
+framer.o: framer.c framer.h ringbuf.h
+net.o: net.c net.h
+test_util.o: test_util.c test_util.h
+test_GELFsender.o: test_GELFsender.c ringbuf.h framer.h net.h test_util.h
+test_integration.o: test_integration.c test_util.h
+
+test: $(TARGET) $(UNIT_TEST) $(INTEGRATION_TEST)
+	./$(UNIT_TEST)
+	./$(INTEGRATION_TEST) ./$(TARGET)
 
 install: $(TARGET)
 	install -D -m 0755 $(TARGET) $(DESTDIR)/usr/bin/$(TARGET)
 
 clean:
-	rm -f $(TARGET) $(TEST_TARGET)
-
+	rm -f $(TARGET) $(UNIT_TEST) $(INTEGRATION_TEST) *.o

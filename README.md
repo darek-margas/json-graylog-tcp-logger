@@ -19,11 +19,27 @@ Transferring logs from Apache to Graylog brings some challenges.
 
 # How is it solved here?
 - This is logging into STDIN hence httpd will maintain the process
-- Taking input and sending output is nearly independent
+- Taking input and sending output is independent: a single poll() loop reads stdin whenever data is available and never waits on the network (connects and sends are non-blocking)
 - Input is always accepted and buffered
-- The message line is truncated to remove 0x0a termination and new trailing 0x00 is added to comply with Graylog spec
-- Output is being send if possible, with active/passive failover if two Graylogs are available
-- If output is impossible to send, buffer accumulates messages up to its limit and then starts discarding oldest. In that case some logs will be missing but httpd keeps serving.
+- Input is split into lines no matter how the pipe delivers it (several lines per read, or one long line over many reads). The 0x0a termination is replaced by 0x00 to comply with Graylog spec
+- Output is being send if possible, with active/passive failover if two Graylogs are available. Partial sends are resumed and message order is kept across failover
+- If output is impossible to send, buffer accumulates messages up to its size in bytes. When full, oldest messages are discarded until the buffer is at most 3/4 full. In that case some logs will be missing but httpd keeps serving. Drops are reported to syslog at most once a minute
+- Lines longer than the maximum message size are discarded and reported
+- On end of input, buffered messages are flushed for up to 10 seconds before exiting
+
+# Options
+```
+GELFsender -i <ip1> -n <port1> [-j <ip2> -m <port2>] [-b <size>] [-s <size>] [-r <seconds>] [-l]
+```
+- `-i`, `-n` primary server IPv4 address and port
+- `-j`, `-m` backup server IPv4 address and port (optional)
+- `-b` buffer size in bytes, K or M suffix allowed (default 4M)
+- `-s` maximum message size (default 1M), at most 3/4 of the buffer size
+- `-r` reconnect delay and connect timeout in seconds (default 5)
+- `-l` log every processed message to syslog
+
+# Tests
+`make test` runs unit tests (ring buffer, line splitting, connect helpers on loopback) and an integration test that starts the real `GELFsender` binary with a pipe as stdin and loopback listeners as Graylog servers, covering line splitting, long and oversized lines, failover and return to primary, and buffering with drops while servers are down.
 
 # Why is it in C?
 - As httpd depends on it, the process must be stable with minimum dependency. Having interpreter involved increases dependency and creates possible points of failure, when interpreter gets modified or damaged (think an update).
